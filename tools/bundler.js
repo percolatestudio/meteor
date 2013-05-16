@@ -360,6 +360,10 @@ var Target = function (options) {
   // on disk (NodeModulesDirectory.sourcePath) to a
   // NodeModulesDirectory object that we have created to represent it.
   self.nodeModulesDirectories = {};
+
+  // Static assets to include in the bundle. List of File.
+  // For browser targets, these are served over HTTP.
+  self.static = [];
 };
 
 _.extend(Target.prototype, {
@@ -690,9 +694,6 @@ var ClientTarget = function (options) {
   // CSS files. List of File. They will be loaded at page load in the
   // order given.
   self.css = [];
-
-  // Static assets to serve with HTTP. List of File.
-  self.static = [];
 
   // List of segments of additional HTML for <head>/<body>.
   self.head = [];
@@ -1058,9 +1059,6 @@ var ServerTarget = function (options) {
   self.clientTarget = options.clientTarget;
   self.releaseStamp = options.releaseStamp;
   self.library = options.library;
-
-  // Static assets to include in the bundle. List of File.
-  self.static = [];
 
   if (! archinfo.matches(self.arch, "native"))
     throw new Error("ServerTarget targeting something that isn't a server?");
