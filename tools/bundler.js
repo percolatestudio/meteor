@@ -306,13 +306,22 @@ _.extend(File.prototype, {
   // a forward slash and that uses a literal forward slash as the
   // component separator.
   setUrlFromRelPath: function (relPath) {
-    var self = this
+    var self = this;
     var url = relPath.split(path.sep).join('/');
 
     if (url.charAt(0) !== '/')
       url = '/' + url;
 
     self.url = url;
+  },
+
+  setTargetPathFromRelPath: function (relPath) {
+    var self = this;
+    // XXX hack
+    if (relPath.match(/^\/packages\//))
+      self.targetPath = relPath;
+    else
+      self.targetPath = path.join('/app', relPath);
   }
 });
 
@@ -365,8 +374,8 @@ _.extend(Target.prototype, {
   //   per _determineLoadOrder
   // - test: packages to test (Package or 'foo'), per _determineLoadOrder
   // - minify: true to minify
-  // - assetDirs: array of asset directories to add (browser only for
-  //   now) object with keys 'rootDir', 'exclude', 'assetPathPrefix'
+  // - assetDirs: array of asset directories to add
+  //   object with keys 'rootDir', 'exclude', 'assetPathPrefix'
   //   all per addAssetDir.
   // - addCacheBusters: if true, make all files cacheable by adding
   //   unique query strings to their URLs. unlikely to be of much use
@@ -394,7 +403,7 @@ _.extend(Target.prototype, {
     // Process asset directories (eg, /public)
     // XXX this should probably be part of the appDir reader
     _.each(options.assetDirs || [], function (ad) {
-      self.addAssetDir(ad.rootDir, ad.exclude, ad.assetPathPrefix);
+      self.addAssetDir(ad.rootDir, ad.exclude, ad.assetPathPrefix, ad.setUrl);
     });
 
     if (options.addCacheBusters) {
@@ -527,11 +536,7 @@ _.extend(Target.prototype, {
           if (isBrowser)
             f.setUrlFromRelPath(resource.servePath);
           else if (isNative) {
-            // XXX hack
-            if (resource.servePath.match(/^\/packages\//))
-              f.targetPath = resource.servePath;
-            else
-              f.targetPath = path.join('/app', resource.servePath);
+            f.setTargetPathFromRelPath(resource.servePath);
           }
 
           if (isNative && resource.type === "js" && ! isApp &&
@@ -618,8 +623,61 @@ _.extend(Target.prototype, {
   mostCompatibleArch: function () {
     var self = this;
     return archinfo.leastSpecificDescription(_.pluck(self.slices, 'arch'));
-  }
+  },
 
+  // Add all of the files in a directory `rootDir` (and its
+  // subdirectories) as static assets. `rootDir` should be an absolute
+  // path. If provided, exclude is an
+  // array of filename regexps to exclude. If provided, assetPath is a
+  // prefix to use when computing the path for each file.
+  // XXX it appears that assetPathPrefix doesn't ever get used?
+  // setUrl is a boolean indicating whether a url should be set
+  // from which to serve the file (true for client assets, false for
+  // server assets).
+  addAssetDir: function (rootDir, exclude, assetPathPrefix, setUrl) {
+    var self = this;
+    exclude = exclude || [];
+
+    self.dependencyInfo.directories[rootDir] = {
+      include: [/.?/],
+      exclude: exclude
+    };
+
+    var walk = function (dir, assetPathPrefix) {
+      _.each(fs.readdirSync(dir), function (item) {
+        // Skip excluded files
+        var matchesAnExclude = _.any(exclude, function (pattern) {
+          return item.match(pattern);
+        });
+        if (matchesAnExclude)
+          return;
+
+        var absPath = path.resolve(dir, item);
+        var assetPath = path.join(assetPathPrefix, item);
+        if (fs.statSync(absPath).isDirectory()) {
+          walk(absPath, assetPath);
+          return;
+        }
+
+        var f = new File({ sourcePath: absPath });
+        // We need to keep assetPath around in some form, because it is used to
+        // set targetPath. On the client, the url includes the asset path, so
+        // later assignTargetPaths can assign target paths based on the url. For
+        // server resources, we need to assign target path now, since the asset
+        // path isn't kept around in the url.
+        if (setUrl)
+          f.setUrlFromRelPath(assetPath);
+        else {
+          f.setTargetPathFromRelPath(path.relative(rootDir, assetPath));
+        }
+
+        self.dependencyInfo.files[absPath] = f.hash();
+        self.static.push(f);
+      });
+    };
+
+    walk(rootDir, assetPathPrefix || '');
+  }
 });
 
 
@@ -660,47 +718,6 @@ _.extend(ClientTarget.prototype, {
 
     self.css = [new File({ data: new Buffer(allCss, 'utf8') })];
     self.css[0].setUrlToHash(".css");
-  },
-
-  // Add all of the files in a directory `rootDir` (and its
-  // subdirectories) as static assets. `rootDir` should be an absolute
-  // path. Only makes sense on clients. If provided, exclude is an
-  // array of filename regexps to exclude. If provided, assetPath is a
-  // prefix to use when computing the path for each file in the
-  // client's asset tree.
-  addAssetDir: function (rootDir, exclude, assetPathPrefix) {
-    var self = this;
-    exclude = exclude || [];
-
-    self.dependencyInfo.directories[rootDir] = {
-      include: [/.?/],
-      exclude: exclude
-    };
-
-    var walk = function (dir, assetPathPrefix) {
-      _.each(fs.readdirSync(dir), function (item) {
-        // Skip excluded files
-        var matchesAnExclude = _.any(exclude, function (pattern) {
-          return item.match(pattern);
-        });
-        if (matchesAnExclude)
-          return;
-
-        var absPath = path.resolve(dir, item);
-        var assetPath = path.join(assetPathPrefix, item);
-        if (fs.statSync(absPath).isDirectory()) {
-          walk(absPath, assetPath);
-          return;
-        }
-
-        var f = new File({ sourcePath: absPath });
-        f.setUrlFromRelPath(assetPath);
-        self.dependencyInfo.files[absPath] = f.hash();
-        self.static.push(f);
-      });
-    };
-
-    walk(rootDir, assetPathPrefix || '');
   },
 
   assignTargetPaths: function () {
@@ -1372,6 +1389,22 @@ exports.bundle = function (appDir, outputPath, options) {
     var targets = {};
     var controlProgram = null;
 
+    var getValidAssetDirs = function (dirNames, assetDirDefaults) {
+      var assetDirs = [];
+      assetDirDefaults = assetDirDefaults || {};
+      if (appDir) {
+        if (files.is_app_dir(appDir)) { /* XXX what is this checking? */
+          _.each(dirNames, function (dirName) {
+            var assetDir = path.join(appDir, dirName);
+            var assetDirObj = _.extend({ rootDir: assetDir }, assetDirDefaults);
+            if (fs.existsSync(assetDir))
+              assetDirs.push(assetDirObj);
+          });
+        }
+      }
+      return assetDirs;
+    };
+
     var makeClientTarget = function (app, appDir) {
       var client = new ClientTarget({
         library: library,
@@ -1380,18 +1413,10 @@ exports.bundle = function (appDir, outputPath, options) {
 
       // Scan /public if the client has it
       // XXX this should probably be part of the appDir reader
-      if (appDir) {
-        var clientAssetDirs = [];
-        if (files.is_app_dir(appDir)) { /* XXX what is this checking? */
-          var publicDir = path.join(appDir, 'public');
-          if (fs.existsSync(publicDir)) {
-            clientAssetDirs.push({
-              rootDir: publicDir,
-              exclude: ignoreFiles
-            });
-          }
-        }
-      }
+      var clientAssetDirs = getValidAssetDirs(['public'], {
+        exclude: ignoreFiles,
+        setUrl: true
+      });
 
       client.make({
         packages: [app],
@@ -1419,6 +1444,10 @@ exports.bundle = function (appDir, outputPath, options) {
     };
 
     var makeServerTarget = function (app, clientTarget) {
+      var serverAssetDirs = getValidAssetDirs(['private'], {
+        exclude: ignoreFiles,
+        setUrl: false
+      });
       var targetOptions = {
         library: library,
         arch: archinfo.host(),
@@ -1432,7 +1461,8 @@ exports.bundle = function (appDir, outputPath, options) {
       server.make({
         packages: [app],
         test: options.testPackages || [],
-        minify: false
+        minify: false,
+        assetDirs: serverAssetDirs
       });
 
       return server;
