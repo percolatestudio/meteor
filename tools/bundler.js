@@ -749,17 +749,11 @@ _.extend(ClientTarget.prototype, {
     _.each(["js", "css", "static"], function (type) {
       _.each(self[type], function (file) {
 
-        if (! file.targetPath)
-          throw new Error("No targetPath?");
-
         // XXX should probably use sanitize: true, but that will have
         // to wait until the server is actually driven by the manifest
         // (rather than just serving all of the files in a certain
         // directories)
-        var contents = file.contents();
-        if (! (contents instanceof Buffer))
-          throw new Error("contents not a Buffer?");
-        builder.write(file.targetPath, { data: file.contents() });
+        writeFile(file, builder);
 
         manifest.push({
           path: file.targetPath,
@@ -1048,6 +1042,9 @@ var ServerTarget = function (options) {
   self.releaseStamp = options.releaseStamp;
   self.library = options.library;
 
+  // Static assets to include in the bundle. List of File.
+  self.static = [];
+
   if (! archinfo.matches(self.arch, "native"))
     throw new Error("ServerTarget targeting something that isn't a server?");
 };
@@ -1147,10 +1144,23 @@ _.extend(ServerTarget.prototype, {
       });
     }
 
+    // Static assets
+    _.each(self.static, function (file) {
+      writeFile(file, builder);
+    });
+
     return scriptName;
   }
 });
 
+var writeFile = function (file, builder) {
+  if (! file.targetPath)
+    throw new Error("No targetPath?");
+  var contents = file.contents();
+  if (! (contents instanceof Buffer))
+    throw new Error("contents not a Buffer?");
+  builder.write(file.targetPath, { data: file.contents() });
+};
 
 ///////////////////////////////////////////////////////////////////////////////
 // writeSiteArchive
