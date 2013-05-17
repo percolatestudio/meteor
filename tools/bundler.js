@@ -407,7 +407,7 @@ _.extend(Target.prototype, {
     // Process asset directories (eg, /public)
     // XXX this should probably be part of the appDir reader
     _.each(options.assetDirs || [], function (ad) {
-      self.addAssetDir(ad.rootDir, ad.exclude, ad.assetPathPrefix, ad.setUrl);
+      self.addAssetDir(ad.rootDir, ad.exclude, ad.assetPathPrefix, ad.options);
     });
 
     if (options.addCacheBusters) {
@@ -539,9 +539,8 @@ _.extend(Target.prototype, {
 
           if (isBrowser)
             f.setUrlFromRelPath(resource.servePath);
-          else if (isNative) {
+          else if (isNative)
             f.setTargetPathFromRelPath(resource.servePath);
-          }
 
           if (isNative && resource.type === "js" && ! isApp &&
               slice.nodeModulesPath) {
@@ -635,10 +634,11 @@ _.extend(Target.prototype, {
   // array of filename regexps to exclude. If provided, assetPath is a
   // prefix to use when computing the path for each file.
   // XXX it appears that assetPathPrefix doesn't ever get used?
-  // setUrl is a boolean indicating whether a url should be set
-  // from which to serve the file (true for client assets, false for
-  // server assets).
-  addAssetDir: function (rootDir, exclude, assetPathPrefix, setUrl) {
+  // options contains:
+  //   setUrl (boolean): set each file's url based on its path
+  //   setTargetPath (boolean): set each file's targetPath based on
+  //     its path
+  addAssetDir: function (rootDir, exclude, assetPathPrefix, options) {
     var self = this;
     exclude = exclude || [];
 
@@ -664,16 +664,10 @@ _.extend(Target.prototype, {
         }
 
         var f = new File({ sourcePath: absPath });
-        // We need to keep assetPath around in some form, because it is used to
-        // set targetPath. On the client, the url includes the asset path, so
-        // later assignTargetPaths can assign target paths based on the url. For
-        // server resources, we need to assign target path now, since the asset
-        // path isn't kept around in the url.
-        if (setUrl)
+        if (options.setUrl)
           f.setUrlFromRelPath(assetPath);
-        else {
+        if (options.setTargetPath)
           f.setTargetPathFromRelPath(path.relative(rootDir, assetPath));
-        }
 
         self.dependencyInfo.files[absPath] = f.hash();
         self.static.push(f);
@@ -1413,7 +1407,9 @@ exports.bundle = function (appDir, outputPath, options) {
       // XXX this should probably be part of the appDir reader
       var clientAssetDirs = getValidAssetDirs(['public'], {
         exclude: ignoreFiles,
-        setUrl: true
+        options: { setUrl: true }
+        // No need to set targetPath when the asset dir is added;
+        // the target path will be set later in assignTargetPaths.
       });
 
       client.make({
@@ -1444,7 +1440,9 @@ exports.bundle = function (appDir, outputPath, options) {
     var makeServerTarget = function (app, clientTarget) {
       var serverAssetDirs = getValidAssetDirs(['private'], {
         exclude: ignoreFiles,
-        setUrl: false
+        options: { setTargetPath: true }
+        // We need to set the target path when the asset dir is added,
+        // because the target path comes from the asset's path.
       });
       var targetOptions = {
         library: library,
