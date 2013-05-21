@@ -277,10 +277,11 @@ _.extend(Slice.prototype, {
       // - addAsset({ path: "my/image.png", data: Buffer })
       //   Add a file to serve as-is over HTTP (browser targets) or
       //   to include as-is in the bundle (native targets).
-      //   This time `data` is a Buffer rather than a string. It will
-      //   be served or located (for browser or native targets, resp.)
-      //   at the exact path you request (conatenated with
-      //   rootOutputPath).
+      //   This time `data` is a Buffer rather than a string. For
+      //   browser targets, it will be served at the exact path you
+      //   request (concatenated with rootOutputPath). For server
+      //   targets, the file will be located in the directory
+      //   named in the program.json "static" field.
       // - error({ message: "There's a problem in your source file",
       //           sourcePath: "src/my/program.ext", line: 12,
       //           column: 20, columnEnd: 25, func: "doStuff" })

@@ -113,6 +113,8 @@
 //    - node_modules: if Npm.require is called from this file, this is
 //      the path (relative to program.json) of the directory that should
 //      be search for npm modules
+//  - static: a path, relative to program.json, to a directory. This is where
+//      static server resources will be.
 //
 // /config.json:
 //
@@ -318,7 +320,7 @@ _.extend(File.prototype, {
   setTargetPathFromRelPath: function (relPath) {
     var self = this;
     // XXX hack
-    if (relPath.match(/^\/packages\//))
+    if (relPath.match(/^\/packages\//) || relPath.match(/^\/static\//))
       self.targetPath = relPath;
     else
       self.targetPath = path.join('/app', relPath);
@@ -540,7 +542,10 @@ _.extend(Target.prototype, {
           if (isBrowser)
             f.setUrlFromRelPath(resource.servePath);
           else if (isNative)
-            f.setTargetPathFromRelPath(resource.servePath);
+            f.setTargetPathFromRelPath(path.join(path.sep,
+                                                 resource.type === "static" ?
+                                                 "static" : "",
+                                                 resource.servePath));
 
           if (isNative && resource.type === "js" && ! isApp &&
               slice.nodeModulesPath) {
@@ -667,7 +672,10 @@ _.extend(Target.prototype, {
         if (options.setUrl)
           f.setUrlFromRelPath(assetPath);
         if (options.setTargetPath)
-          f.setTargetPathFromRelPath(path.relative(rootDir, assetPath));
+          f.setTargetPathFromRelPath(path.join(path.sep,
+                                               'static',
+                                               path.relative(rootDir,
+                                                             assetPath)));
 
         self.dependencyInfo.files[absPath] = f.hash();
         self.static.push(f);
@@ -962,7 +970,8 @@ _.extend(JsImage.prototype, {
     builder.writeJson('program.json', {
       load: load,
       format: "javascript-image-pre1",
-      arch: self.arch
+      arch: self.arch,
+      static: "static"
     });
     return "program.json";
   }
@@ -1397,7 +1406,7 @@ exports.bundle = function (appDir, outputPath, options) {
       return assetDirs;
     };
 
-    var makeClientTarget = function (app, appDir) {
+    var makeClientTarget = function (app, appDir, assetDirs) {
       var client = new ClientTarget({
         library: library,
         arch: "browser"
@@ -1405,7 +1414,8 @@ exports.bundle = function (appDir, outputPath, options) {
 
       // Scan /public if the client has it
       // XXX this should probably be part of the appDir reader
-      var clientAssetDirs = getValidAssetDirs(['public'], {
+      assetDirs = assetDirs || [];
+      var clientAssetDirs = getValidAssetDirs(assetDirs, {
         exclude: ignoreFiles,
         options: { setUrl: true }
         // No need to set targetPath when the asset dir is added;
@@ -1437,8 +1447,9 @@ exports.bundle = function (appDir, outputPath, options) {
       return client;
     };
 
-    var makeServerTarget = function (app, clientTarget) {
-      var serverAssetDirs = getValidAssetDirs(['private'], {
+    var makeServerTarget = function (app, clientTarget, assetDirs) {
+      assetDirs = assetDirs || [];
+      var serverAssetDirs = getValidAssetDirs(assetDirs, {
         exclude: ignoreFiles,
         options: { setTargetPath: true }
         // We need to set the target path when the asset dir is added,
@@ -1473,11 +1484,11 @@ exports.bundle = function (appDir, outputPath, options) {
       var app = library.getForApp(appDir, ignoreFiles);
 
       // Client
-      var client = makeClientTarget(app, appDir);
+      var client = makeClientTarget(app, appDir, ['public']);
       targets.client = client;
 
       // Server
-      var server = makeServerTarget(app, client);
+      var server = makeServerTarget(app, client, ['private']);
       targets.server = server;
     }
 
