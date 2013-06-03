@@ -1023,7 +1023,8 @@ JsImage.readFromDisk = function (controlFilePath) {
     ret.jsToLoad.push({
       targetPath: item.path,
       source: fs.readFileSync(path.join(dir, item.path)),
-      nodeModulesDirectory: nmd
+      nodeModulesDirectory: nmd,
+      staticDir: item.staticDir
     });
   });
 

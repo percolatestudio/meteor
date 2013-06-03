@@ -1,6 +1,7 @@
 var Fiber = require("fibers");
 var fs = require("fs");
 var path = require("path");
+var Future = require(path.join("fibers", "future"));
 var _ = require('underscore');
 
 // This code is duplicated in tools/server/server.js.
@@ -67,11 +68,28 @@ Fiber(function () {
           }
       }
     };
+    var staticDir = path.join(__dirname, fileInfo.staticDir);
+    var getAsset = function (assetPath, encoding) {
+      var fut = new Future();
+      fs.readFile(path.join(staticDir, assetPath), encoding,
+                  fut.resolver());
+      var contents = fut.wait();
+      return contents;
+    };
+    var Assets = {
+      getText: function (assetPath) {
+        return getAsset(assetPath, "utf8");
+      },
+      getBinary: function (assetPath) {
+        return getAsset(assetPath);
+      }
+    };
+
     // \n is necessary in case final line is a //-comment
-    var wrapped = "(function(Npm){" + code + "\n})";
+    var wrapped = "(function(Npm, Assets){" + code + "\n})";
 
     var func = require('vm').runInThisContext(wrapped, fileInfo.path, true);
-    func.call(global, Npm); // Coffeescript
+    func.call(global, Npm, Assets); // Coffeescript
   });
 
   // run the user startup hooks.
