@@ -249,6 +249,8 @@ var File = function (options) {
   // in the "server" architecture.
   self.nodeModulesDirectory = null;
 
+  self.staticDir = null;
+
   self._contents = options.data || null; // contents, if known, as a Buffer
   self._hash = null; // hash, if known, as a hex string
 };
@@ -324,6 +326,13 @@ _.extend(File.prototype, {
       self.targetPath = relPath;
     else
       self.targetPath = path.join('/app', relPath);
+  },
+
+  setStaticDirFromRelPath: function (relPath) {
+    var self = this;
+    var dir = path.dirname(relPath);
+    var base = path.basename(relPath, ".js");
+    self.staticDir = path.join('/static', dir, base);
   }
 });
 
@@ -539,13 +548,16 @@ _.extend(Target.prototype, {
             cacheable: false
           });
 
-          if (isBrowser)
+          if (isBrowser) {
             f.setUrlFromRelPath(resource.servePath);
-          else if (isNative)
-            f.setTargetPathFromRelPath(path.join(path.sep,
-                                                 resource.type === "static" ?
-                                                 "static" : "",
-                                                 resource.servePath));
+          } else if (isNative) {
+            var relPath = path.join(path.sep,
+                                    resource.type === "static" ? "static" : "",
+                                    resource.servePath);
+            f.setTargetPathFromRelPath(relPath);
+            if (resource.type === "js")
+              f.setStaticDirFromRelPath(relPath);
+          }
 
           if (isNative && resource.type === "js" && ! isApp &&
               slice.nodeModulesPath) {
@@ -949,7 +961,8 @@ _.extend(JsImage.prototype, {
       load.push({
         path: item.targetPath,
         node_modules: item.nodeModulesDirectory ?
-          item.nodeModulesDirectory.preferredBundlePath : undefined
+          item.nodeModulesDirectory.preferredBundlePath : undefined,
+        staticDir: item.staticDir
       });
     });
 
@@ -1038,7 +1051,8 @@ _.extend(JsImageTarget.prototype, {
       ret.jsToLoad.push({
         targetPath: file.targetPath,
         source: file.contents().toString('utf8'),
-        nodeModulesDirectory: file.nodeModulesDirectory
+        nodeModulesDirectory: file.nodeModulesDirectory,
+        staticDir: file.staticDir
       });
     });
 
