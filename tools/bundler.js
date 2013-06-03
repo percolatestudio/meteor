@@ -330,9 +330,14 @@ _.extend(File.prototype, {
 
   setStaticDirFromRelPath: function (relPath) {
     var self = this;
-    var dir = path.dirname(relPath);
-    var base = path.basename(relPath, ".js");
-    self.staticDir = path.join('/static', dir, base);
+    // XXX same hack as above
+    if (relPath.match(/^\/packages\//)) {
+      var dir = path.dirname(relPath);
+      var base = path.basename(relPath, ".js");
+      self.staticDir = path.join('/static', dir, base);
+    } else {
+      self.staticDir = path.join('/static');
+    }
   }
 });
 
@@ -979,8 +984,7 @@ _.extend(JsImage.prototype, {
     builder.writeJson('program.json', {
       load: load,
       format: "javascript-image-pre1",
-      arch: self.arch,
-      static: "static"
+      arch: self.arch
     });
     return "program.json";
   }

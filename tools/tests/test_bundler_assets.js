@@ -51,11 +51,7 @@ assert.doesNotThrow(function () {
                 "program.json")
     )
   );
-  var staticDir = path.join(tmpOutputDir, "programs",
-                            "server", serverManifest.static);
-  var testTxtPath = path.join(staticDir, "test.txt");
-  var nestedTxtPath = path.join(staticDir, "nested", "test.txt");
-
+  var staticDir;
   var packageTxtPath;
   _.each(serverManifest.load, function (item) {
     console.log(item.path);
@@ -64,7 +60,14 @@ assert.doesNotThrow(function () {
                                  "programs", "server",
                                  item.staticDir, "test-package.txt");
     }
+    if (item.path === "/app/test.js") {
+      staticDir = path.join(tmpOutputDir,
+                            "programs", "server",
+                            item.staticDir);
+    }
   });
+  var testTxtPath = path.join(staticDir, "test.txt");
+  var nestedTxtPath = path.join(staticDir, "nested", "test.txt");
   assert.strictEqual(result.errors, false, result.errors && result.errors[0]);
   assert(fs.existsSync(testTxtPath));
   assert(fs.existsSync(nestedTxtPath));
