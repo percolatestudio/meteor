@@ -15,10 +15,15 @@ assert.doesNotThrow(function () {
     library: lib,
     releaseStamp: 'none'
   });
-  var testTxtPath = path.join(tmpOutputDir, "programs",
-                              "client", "static", "test.txt");
-  var nestedTxtPath = path.join(tmpOutputDir, "programs",
-                                "client", "static", "nested", "nested.txt");
+  var clientManifest = JSON.parse(
+    fs.readFileSync(
+      path.join(tmpOutputDir, "programs", "client", "program.json")
+    )
+  );
+  var staticDir = path.join(tmpOutputDir, "programs",
+                            "client", clientManifest.static);
+  var testTxtPath = path.join(staticDir, "test.txt");
+  var nestedTxtPath = path.join(staticDir, "nested", "nested.txt");
   assert.strictEqual(result.errors, false, result.errors && result.errors[0]);
   assert(fs.existsSync(testTxtPath));
   assert(fs.existsSync(nestedTxtPath));
