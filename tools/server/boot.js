@@ -69,19 +69,22 @@ Fiber(function () {
       }
     };
     var staticDir = path.join(__dirname, fileInfo.staticDir);
-    var getAsset = function (assetPath, encoding) {
+    var getAsset = function (assetPath, encoding, callback) {
       var fut = new Future();
+      var readCb = callback || fut.resolver();
       fs.readFile(path.join(staticDir, assetPath), encoding,
-                  fut.resolver());
-      var contents = fut.wait();
-      return contents;
+                  readCb);
+      if (! callback) {
+        var contents = fut.wait();
+        return contents;
+      }
     };
     var Assets = {
-      getText: function (assetPath) {
-        return getAsset(assetPath, "utf8");
+      getText: function (assetPath, callback) {
+        return getAsset(assetPath, "utf8", callback);
       },
-      getBinary: function (assetPath) {
-        return getAsset(assetPath);
+      getBinary: function (assetPath, callback) {
+        return getAsset(assetPath, undefined, callback);
       }
     };
 
