@@ -280,8 +280,8 @@ _.extend(Slice.prototype, {
       //   This time `data` is a Buffer rather than a string. For
       //   browser targets, it will be served at the exact path you
       //   request (concatenated with rootOutputPath). For server
-      //   targets, the file will be located in the directory
-      //   named in the program.json "static" field.
+      //   targets, the file can be retrieved by passing path to
+      //   Assets.getText or Assets.getBinary.
       // - error({ message: "There's a problem in your source file",
       //           sourcePath: "src/my/program.ext", line: 12,
       //           column: 20, columnEnd: 25, func: "doStuff" })

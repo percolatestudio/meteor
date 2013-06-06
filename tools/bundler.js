@@ -113,8 +113,8 @@
 //    - node_modules: if Npm.require is called from this file, this is
 //      the path (relative to program.json) of the directory that should
 //      be search for npm modules
-//  - static: a path, relative to program.json, to a directory. This is where
-//      static server resources will be.
+//    - staticDir: directory to search for static assets when Assets.getText
+//      and Assets.getBinary are called from this file.
 //
 // /config.json:
 //
@@ -330,6 +330,9 @@ _.extend(File.prototype, {
 
   setStaticDirFromRelPath: function (relPath) {
     var self = this;
+    // For package code, static assets go inside a directory inside
+    // static/packages specific to this package. Application assets (e.g. those
+    // inside private/) just go in static/.
     // XXX same hack as above
     if (relPath.match(/^\/packages\//)) {
       var dir = path.dirname(relPath);
@@ -556,9 +559,11 @@ _.extend(Target.prototype, {
           if (isBrowser) {
             f.setUrlFromRelPath(resource.servePath);
           } else if (isNative) {
-            var relPath = path.join(path.sep,
-                                    resource.type === "static" ? "static" : "",
-                                    resource.servePath);
+            var relPath;
+            if (resource.type === "static")
+              relPath = path.join(path.sep, "static", resource.servePath);
+            else
+              relPath = resource.servePath;
             f.setTargetPathFromRelPath(relPath);
             if (resource.type === "js")
               f.setStaticDirFromRelPath(relPath);
@@ -655,7 +660,6 @@ _.extend(Target.prototype, {
   // path. If provided, exclude is an
   // array of filename regexps to exclude. If provided, assetPath is a
   // prefix to use when computing the path for each file.
-  // XXX it appears that assetPathPrefix doesn't ever get used?
   // options contains:
   //   setUrl (boolean): set each file's url based on its path
   //   setTargetPath (boolean): set each file's targetPath based on
