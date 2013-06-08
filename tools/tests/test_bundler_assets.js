@@ -66,6 +66,7 @@ assert.doesNotThrow(function () {
                             item.staticDir);
     }
   });
+  // Check that the files are where the manifest says they are
   var testTxtPath = path.join(staticDir, "test.txt");
   var nestedTxtPath = path.join(staticDir, "nested", "test.txt");
   assert.strictEqual(result.errors, false, result.errors && result.errors[0]);
@@ -75,4 +76,16 @@ assert.doesNotThrow(function () {
   assert.strictEqual(fs.readFileSync(testTxtPath, "utf8").trim(), "Test");
   assert.strictEqual(fs.readFileSync(nestedTxtPath, "utf8").trim(), "Nested");
   assert.strictEqual(fs.readFileSync(packageTxtPath, "utf8").trim(), "Package");
+
+  // Run the app to check that Assets.getText/Binary do the right things.
+  var cp = require('child_process');
+  var meteor = path.join(__dirname, "..", "..", "meteor"); // XXX is this allowed?
+  var fut = new Future();
+  var proc = cp.spawn(meteor, ["--once"], {
+    cwd: path.join(__dirname, "app-with-private")
+  });
+  proc.on("exit", function (code) {
+    fut.return(code);
+  });
+  assert.strictEqual(fut.wait(), 0);
 });
