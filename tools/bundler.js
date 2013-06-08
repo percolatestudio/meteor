@@ -339,7 +339,7 @@ _.extend(File.prototype, {
       var base = path.basename(relPath, ".js");
       self.staticDir = path.join('/static', dir, base);
     } else {
-      self.staticDir = path.join('/static');
+      self.staticDir = path.join('/static', 'app');
     }
   }
 });
@@ -693,7 +693,7 @@ _.extend(Target.prototype, {
         if (options.setUrl)
           f.setUrlFromRelPath(assetPath);
         if (options.setTargetPath)
-          f.setTargetPathFromRelPath(path.join('/static', assetPath));
+          f.setTargetPathFromRelPath(path.join('/static', 'app', assetPath));
         self.dependencyInfo.files[absPath] = f.hash();
         self.static.push(f);
       });
