@@ -70,27 +70,24 @@ Fiber(function () {
     };
     var staticDir = path.join(__dirname, fileInfo.staticDir);
     var getAsset = function (assetPath, encoding, callback) {
-      var _callback;
       var fut;
       if (! callback) {
         fut = new Future();
-        _callback = fut.resolver();
-      } else {
-        _callback = function (err, result) {
-          if (result && ! encoding)
-            result = new Uint8Array(result);
-          callback(err, result);
-        };
-        _callback = Meteor.bindEnvironment(_callback, function (e) {
-          Meteor._debug("Exception in callback of getAsset", e.stack);
-        });
+        callback = fut.resolver();
       }
+      var _callback = Meteor.bindEnvironment(function (err, result) {
+        if (result && ! encoding)
+          // Sadly, this copies in Node 0.10.
+          result = new Uint8Array(result);
+        callback(err, result);
+      }, function (e) {
+        Meteor._debug("Exception in callback of getAsset", e.stack);
+      });
       fs.readFile(path.join(staticDir, assetPath), encoding, _callback);
-      if (fut) {
-        var result = fut.wait();
-        return (encoding ? result : new Uint8Array(result));
-      }
+      if (fut)
+        return fut.wait();
     };
+
     var Assets = {
       getText: function (assetPath, callback) {
         return getAsset(assetPath, "utf8", callback);
