@@ -789,10 +789,6 @@ _.extend(ClientTarget.prototype, {
     _.each(["js", "css", "static"], function (type) {
       _.each(self[type], function (file) {
 
-        // XXX should probably use sanitize: true, but that will have
-        // to wait until the server is actually driven by the manifest
-        // (rather than just serving all of the files in a certain
-        // directories)
         writeFile(file, builder);
 
         manifest.push({
@@ -1199,6 +1195,10 @@ var writeFile = function (file, builder) {
   var contents = file.contents();
   if (! (contents instanceof Buffer))
     throw new Error("contents not a Buffer?");
+  // XXX should probably use sanitize: true, but that will have
+  // to wait until the server is actually driven by the manifest
+  // (rather than just serving all of the files in a certain
+  // directories)
   builder.write(file.targetPath, { data: file.contents() });
 };
 
