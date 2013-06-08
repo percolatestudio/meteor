@@ -398,8 +398,8 @@ _.extend(Target.prototype, {
   // - test: packages to test (Package or 'foo'), per _determineLoadOrder
   // - minify: true to minify
   // - assetDirs: array of asset directories to add
-  //   object with keys 'rootDir', 'exclude', 'assetPathPrefix'
-  //   all per addAssetDir.
+  //   object with keys 'rootDir', 'exclude', 'assetPathPrefix',
+  //   'setUrl', 'setTargetPath', all per addAssetDir.
   // - addCacheBusters: if true, make all files cacheable by adding
   //   unique query strings to their URLs. unlikely to be of much use
   //   on server targets.
@@ -426,7 +426,7 @@ _.extend(Target.prototype, {
     // Process asset directories (eg, /public)
     // XXX this should probably be part of the appDir reader
     _.each(options.assetDirs || [], function (ad) {
-      self.addAssetDir(ad.rootDir, ad.exclude, ad.assetPathPrefix, ad.options);
+      self.addAssetDir(ad);
     });
 
     if (options.addCacheBusters) {
@@ -655,17 +655,20 @@ _.extend(Target.prototype, {
     return archinfo.leastSpecificDescription(_.pluck(self.slices, 'arch'));
   },
 
+  // assetDir has properties rootDir, exclude, assetPathPrefix, setUrl,
+  // and setTargetPath. (All but rootDir are optional.)
   // Add all of the files in a directory `rootDir` (and its
   // subdirectories) as static assets. `rootDir` should be an absolute
   // path. If provided, exclude is an
-  // array of filename regexps to exclude. If provided, assetPath is a
+  // array of filename regexps to exclude. If provided, assetPathPrefix is a
   // prefix to use when computing the path for each file.
-  // options contains:
-  //   setUrl (boolean): set each file's url based on its path
-  //   setTargetPath (boolean): set each file's targetPath based on
-  //     its path
-  addAssetDir: function (rootDir, exclude, assetPathPrefix, options) {
+  addAssetDir: function (assetDir) {
     var self = this;
+    var rootDir = assetDir.rootDir;
+    var exclude = assetDir.exclude;
+    var assetPathPrefix = assetDir.assetPathPrefix;
+    var setUrl = assetDir.setUrl;
+    var setTargetPath = assetDir.setTargetPath;
     exclude = exclude || [];
 
     self.dependencyInfo.directories[rootDir] = {
@@ -690,9 +693,9 @@ _.extend(Target.prototype, {
         }
 
         var f = new File({ sourcePath: absPath });
-        if (options.setUrl)
+        if (setUrl)
           f.setUrlFromRelPath(assetPath);
-        if (options.setTargetPath)
+        if (setTargetPath)
           f.setTargetPathFromRelPath(path.join('/static', 'app', assetPath));
         self.dependencyInfo.files[absPath] = f.hash();
         self.static.push(f);
@@ -1436,7 +1439,7 @@ exports.bundle = function (appDir, outputPath, options) {
       assetDirs = assetDirs || [];
       var clientAssetDirs = getValidAssetDirs(assetDirs, {
         exclude: ignoreFiles,
-        options: { setUrl: true }
+        setUrl: true
         // No need to set targetPath when the asset dir is added;
         // the target path will be set later in assignTargetPaths.
       });
@@ -1470,7 +1473,7 @@ exports.bundle = function (appDir, outputPath, options) {
       assetDirs = assetDirs || [];
       var serverAssetDirs = getValidAssetDirs(assetDirs, {
         exclude: ignoreFiles,
-        options: { setTargetPath: true }
+        setTargetPath: true
         // We need to set the target path when the asset dir is added,
         // because the target path comes from the asset's path.
       });
