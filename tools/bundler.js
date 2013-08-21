@@ -527,7 +527,7 @@ _.extend(Bundle.prototype, {
 
     var combinedCode = codeParts.join('\n;\n');
     var finalCode = uglify.minify(
-      combinedCode, {fromString: true, compress: {drop_debugger: false}}).code;
+      combinedCode, {fromString: true, compress: {drop_debugger: false}, mangle: {except: ["$super"]}}).code;
 
     addFile('js', finalCode);
 
