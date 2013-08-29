@@ -21,7 +21,8 @@ Package.register_extension(
         // we don't have to use Futures and (b) errors thrown by bugs in less
         // actually get caught.
         syncImport: true,
-        paths: [path.resolve(source_path, '..')] // for @import
+        paths: [path.resolve(source_path, '..')], // for @import
+        rootpath: process.env.LESS_CSS_ROOT_PATH
       }, function (err, css) {
         if (err) {
           bundle.error(source_path + ": Less compiler error: " + err.message);
