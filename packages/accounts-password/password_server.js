@@ -240,11 +240,19 @@ Accounts.sendResetPasswordEmail = function (userId, email) {
   }});
 
   var resetPasswordUrl = Accounts.urls.resetPassword(token);
-  Email.send({
+
+  var options = {
     to: email,
     from: Accounts.emailTemplates.from,
     subject: Accounts.emailTemplates.resetPassword.subject(user),
-    text: Accounts.emailTemplates.resetPassword.text(user, resetPasswordUrl)});
+    text: Accounts.emailTemplates.resetPassword.text(user, resetPasswordUrl)
+  };
+
+  if (typeof Accounts.emailTemplates.resetPassword.html === 'function')
+    options.html =
+      Accounts.emailTemplates.resetPassword.html(user, resetPasswordUrl);
+
+  Email.send(options);
 };
 
 // send the user an email informing them that their account was created, with
