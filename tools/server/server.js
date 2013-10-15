@@ -182,7 +182,7 @@ var run = function () {
   
   app.use(function(req, res, next){
     if (req.url.match(/\/fonts/))
-      res.setHeader("Access-Control-Allow-Origin", '*');
+      res.setHeader("Access-Control-Allow-Origin", process.env.ROOT_URL);
     
     next();
   });
