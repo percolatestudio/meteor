@@ -179,14 +179,7 @@ var run = function () {
 
   // Auto-compress any json, javascript, or text.
   app.use(connect.compress());
-  
-  app.use(function(req, res, next){
-    if (req.url.match(/\/fonts/))
-      res.setHeader("Access-Control-Allow-Origin", process.env.ROOT_URL);
-    
-    next();
-  });
-  
+
   var static_cacheable_path = path.join(bundle_dir, 'static_cacheable');
   if (fs.existsSync(static_cacheable_path))
     // cacheable files are files that should never change. Typically
