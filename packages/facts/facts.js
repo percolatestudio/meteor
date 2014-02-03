@@ -1,6 +1,7 @@
 Facts = {};
 
 var serverFactsCollection = 'meteor_Facts_server';
+factsByPackage = {};
 
 if (Meteor.isServer) {
   // By default, we publish facts to no user if autopublish is off, and to all
@@ -16,7 +17,7 @@ if (Meteor.isServer) {
 
   // XXX Use a minimongo collection instead and hook up an observeChanges
   // directly to a publish.
-  var factsByPackage = {};
+  // var factsByPackage = {};
   var activeSubscriptions = [];
 
   Facts.incrementServerFact = function (pkg, fact, increment) {

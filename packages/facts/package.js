@@ -20,4 +20,3 @@ Package.on_use(function (api) {
   api.export('Facts');
   api.export('factsByPackage', 'server');
 });
-
