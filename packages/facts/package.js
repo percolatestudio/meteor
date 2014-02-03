@@ -18,5 +18,6 @@ Package.on_use(function (api) {
   api.add_files('facts.js', ['client', 'server']);
 
   api.export('Facts');
+  api.export('factsByPackage', 'server');
 });
 
